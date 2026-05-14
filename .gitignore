@@ -1,0 +1,14 @@
+.env
+*.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+/other
+
+apps/api/.venv/
+apps/api/*.db
+apps/api/tmp_*.db
+
+apps/web/node_modules/
+apps/web/dist/
