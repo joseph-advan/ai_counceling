@@ -16,6 +16,9 @@ Create a Render Web Service connected to the GitHub repository.
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `python -m alembic upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
+The backend includes `apps/api/.python-version` to pin Render's Python runtime
+to Python 3.11.
+
 Environment variables:
 
 ```env
