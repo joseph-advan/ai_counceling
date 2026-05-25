@@ -32,8 +32,9 @@ CORS_ORIGINS=https://your-frontend.onrender.com
 ```
 
 Use the Render PostgreSQL internal database URL when the backend and database
-are in the same Render account. If Render provides a URL beginning with
-`postgres://`, convert the scheme to `postgresql+psycopg://` for this app.
+are in the same Render account. The app accepts Render URLs beginning with
+`postgresql://` or `postgres://` and normalizes them to the SQLAlchemy
+`postgresql+psycopg://` driver internally.
 
 ## Frontend Static Site
 

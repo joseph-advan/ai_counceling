@@ -13,11 +13,19 @@ def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _normalize_database_url(value: str) -> str:
+    if value.startswith("postgresql://"):
+        return value.replace("postgresql://", "postgresql+psycopg://", 1)
+    if value.startswith("postgres://"):
+        return value.replace("postgres://", "postgresql+psycopg://", 1)
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = os.getenv("APP_NAME", "PCC Counseling API")
     max_turns: int = int(os.getenv("MAX_TURNS", "20"))
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./pcc.db")
+    database_url: str = _normalize_database_url(os.getenv("DATABASE_URL", "sqlite:///./pcc.db"))
     admin_api_key: str = os.getenv("ADMIN_API_KEY", "").strip()
     cors_origins: list[str] = field(default_factory=list)
 
