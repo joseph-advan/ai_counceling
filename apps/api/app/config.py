@@ -14,6 +14,7 @@ def _split_csv(value: str) -> list[str]:
 
 
 def _normalize_database_url(value: str) -> str:
+    value = value.strip()
     if value.startswith("postgresql://"):
         return value.replace("postgresql://", "postgresql+psycopg://", 1)
     if value.startswith("postgres://"):
