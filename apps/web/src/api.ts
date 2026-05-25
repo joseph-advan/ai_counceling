@@ -1,6 +1,6 @@
 import type { ChatTurn, CompleteResult, SessionDetail, SessionSummary } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const mergedHeaders: HeadersInit = {
