@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   adminListSessions,
   completeSession,
@@ -12,15 +12,19 @@ import {
   resumeSession,
   sendUserMessage
 } from "./api";
-import type { SessionDetail, SessionSummary } from "./types";
+import { Markdown } from "./Markdown";
+import type { Message, SessionDetail, SessionSummary } from "./types";
 import "./styles.css";
 
 type RoleMode = "student" | "admin";
 type Language = "en" | "zh";
 
+const RUTH_TYPING_INTERVAL_MS = 35;
+const REWRITE_EXAMPLE_SECTION_PATTERN = /(?:^|\n)(?:#{1,6}\s*)?\**\u56db\u3001\u6539\u5beb\u793a\u7bc4\**[\s\S]*$/;
+
 const copy = {
   en: {
-    appTitle: "PCC Counseling Web",
+    appTitle: "Counseling Web",
     switchTo: "中文",
     student: "Student",
     admin: "Admin",
@@ -32,7 +36,7 @@ const copy = {
     mySessions: "My Sessions",
     selectSession: "Select a session",
     turnsShort: "turns",
-    ruthTitle: "Ruth / PCC",
+    ruthTitle: "Ruth",
     startPrompt: "Create or load a session to start.",
     session: "Session",
     status: "Status",
@@ -63,7 +67,7 @@ const copy = {
     }
   },
   zh: {
-    appTitle: "PCC 諮商練習系統",
+    appTitle: "諮商練習系統",
     switchTo: "English",
     student: "學生",
     admin: "管理",
@@ -75,7 +79,7 @@ const copy = {
     mySessions: "我的練習紀錄",
     selectSession: "選擇一筆練習",
     turnsShort: "回合",
-    ruthTitle: "露絲 / PCC",
+    ruthTitle: "露絲",
     startPrompt: "請先建立或載入一筆練習。",
     session: "練習編號",
     status: "狀態",
@@ -123,6 +127,24 @@ function speakerAvatar(role: "user" | "assistant" | "system"): string {
   return "⚙️";
 }
 
+function formatDateTime(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.replace("T", " ").slice(0, 16);
+  }
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return [
+    `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`,
+    `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
+  ].join(" ");
+}
+
+function supervisionFeedbackText(feedback: string | null, fallback: string): string {
+  if (!feedback) return fallback;
+  return feedback.replace(REWRITE_EXAMPLE_SECTION_PATTERN, "").trim() || fallback;
+}
+
 export default function App() {
   const [roleMode, setRoleMode] = useState<RoleMode>("student");
   const [language, setLanguage] = useState<Language>("en");
@@ -132,16 +154,70 @@ export default function App() {
   const [adminSessions, setAdminSessions] = useState<SessionSummary[]>([]);
   const [adminSessionDetail, setAdminSessionDetail] = useState<SessionDetail | null>(null);
   const [messageInput, setMessageInput] = useState("");
-  const [maxTurns, setMaxTurns] = useState(20);
+  const [maxTurns, setMaxTurns] = useState(100);
+  const [typingMessageId, setTypingMessageId] = useState<number | null>(null);
+  const [typedAssistantText, setTypedAssistantText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const typingTimerRef = useRef<number | null>(null);
+  const typingSequenceRef = useRef(0);
+  const studentChatBoxRef = useRef<HTMLDivElement | null>(null);
   const t = copy[language];
 
   const selectedStudentSessionId = currentSession?.id ?? "";
+  const isRuthTyping = typingMessageId !== null;
   const canChat = useMemo(() => {
     if (!currentSession) return false;
-    return currentSession.status === "practice" && currentSession.turn_count < maxTurns;
-  }, [currentSession, maxTurns]);
+    return currentSession.status === "practice" && currentSession.turn_count < maxTurns && !isRuthTyping;
+  }, [currentSession, isRuthTyping, maxTurns]);
+
+  function clearTypingTimer() {
+    if (typingTimerRef.current !== null) {
+      window.clearInterval(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+  }
+
+  function stopTypingAnimation() {
+    typingSequenceRef.current += 1;
+    clearTypingTimer();
+    setTypingMessageId(null);
+    setTypedAssistantText("");
+  }
+
+  function startTypingAnimation(messageId: number, fullText: string) {
+    typingSequenceRef.current += 1;
+    const sequence = typingSequenceRef.current;
+    clearTypingTimer();
+    setTypingMessageId(messageId);
+    setTypedAssistantText("");
+
+    if (!fullText) {
+      setTypingMessageId(null);
+      return;
+    }
+
+    let index = 0;
+    typingTimerRef.current = window.setInterval(() => {
+      if (typingSequenceRef.current !== sequence) {
+        clearTypingTimer();
+        return;
+      }
+
+      index = Math.min(index + 1, fullText.length);
+      setTypedAssistantText(fullText.slice(0, index));
+
+      if (index >= fullText.length) {
+        clearTypingTimer();
+        setTypingMessageId(null);
+        setTypedAssistantText("");
+      }
+    }, RUTH_TYPING_INTERVAL_MS);
+  }
+
+  function visibleMessageContent(message: Message): string {
+    return message.id === typingMessageId ? typedAssistantText : message.content;
+  }
 
   async function refreshStudentSessions() {
     const normalized = studentName.trim();
@@ -180,12 +256,23 @@ export default function App() {
     }
   }, [roleMode]);
 
+  useEffect(() => {
+    return () => clearTypingTimer();
+  }, []);
+
+  useEffect(() => {
+    const box = studentChatBoxRef.current;
+    if (!box) return;
+    box.scrollTo({ top: box.scrollHeight });
+  }, [currentSession?.messages.length, typedAssistantText]);
+
   async function onCreateSession() {
     const normalizedName = studentName.trim();
     if (!normalizedName) {
       setError(t.enterNameError);
       return;
     }
+    stopTypingAnimation();
     setBusy(true);
     setError(null);
     try {
@@ -201,6 +288,7 @@ export default function App() {
 
   async function onLoadStudentSession(sessionId: string) {
     if (!sessionId) return;
+    stopTypingAnimation();
     setBusy(true);
     setError(null);
     try {
@@ -220,12 +308,14 @@ export default function App() {
 
   async function submitMessage() {
     if (!currentSession || !messageInput.trim()) return;
+    stopTypingAnimation();
     setBusy(true);
     setError(null);
     try {
       const result = await sendUserMessage(currentSession.id, messageInput.trim());
       setCurrentSession(result.session);
       setMessageInput("");
+      startTypingAnimation(result.assistant_message.id, result.assistant_message.content);
       await refreshStudentSessions();
     } catch (err) {
       setError(String(err));
@@ -243,6 +333,7 @@ export default function App() {
 
   async function onCompleteSession() {
     if (!currentSession) return;
+    stopTypingAnimation();
     setBusy(true);
     setError(null);
     try {
@@ -258,6 +349,7 @@ export default function App() {
 
   async function onResumeSession() {
     if (!currentSession) return;
+    stopTypingAnimation();
     setBusy(true);
     setError(null);
     try {
@@ -397,8 +489,7 @@ export default function App() {
               <option value="">{t.selectSession}</option>
               {studentSessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.updated_at} | {statusLabel(s.status, language)} | {s.turn_count} {t.turnsShort} |{" "}
-                  {s.id.slice(0, 8)}
+                  {formatDateTime(s.updated_at)}
                 </option>
               ))}
             </select>
@@ -415,7 +506,7 @@ export default function App() {
                   {t.turns}: {currentSession.turn_count}/{maxTurns}
                 </p>
 
-                <div className="chat-box">
+                <div className="chat-box" ref={studentChatBoxRef}>
                   {currentSession.messages.map((m) => (
                     <div key={m.id} className={`chat-row ${m.role}`}>
                       <div className="avatar" aria-hidden="true">
@@ -423,7 +514,10 @@ export default function App() {
                       </div>
                       <div className={`bubble ${m.role}`}>
                         <strong>{speakerLabel(m.role, language)}</strong>
-                        <p>{m.content}</p>
+                        <p>
+                          {visibleMessageContent(m)}
+                          {m.id === typingMessageId ? <span className="typing-cursor" aria-hidden="true" /> : null}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -443,17 +537,17 @@ export default function App() {
                 </form>
 
                 <div className="row">
-                  <button type="button" onClick={onCompleteSession} disabled={busy}>
+                  <button type="button" onClick={onCompleteSession} disabled={busy || isRuthTyping}>
                     {t.generateSupervision}
                   </button>
-                  <button type="button" onClick={onResumeSession} disabled={busy}>
+                  <button type="button" onClick={onResumeSession} disabled={busy || isRuthTyping}>
                     {t.resumePractice}
                   </button>
                 </div>
 
                 <section className="feedback">
                   <h3>{t.supervisionFeedback}</h3>
-                  <pre>{currentSession.feedback || t.noFeedback}</pre>
+                  <Markdown>{supervisionFeedbackText(currentSession.feedback, t.noFeedback)}</Markdown>
                 </section>
               </>
             )}
@@ -527,7 +621,7 @@ export default function App() {
 
                 <section className="feedback">
                   <h3>{t.supervisionFeedback}</h3>
-                  <pre>{adminSessionDetail.feedback || t.noFeedback}</pre>
+                  <Markdown>{supervisionFeedbackText(adminSessionDetail.feedback, t.noFeedback)}</Markdown>
                 </section>
               </>
             )}

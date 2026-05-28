@@ -25,7 +25,7 @@ def _normalize_database_url(value: str) -> str:
 @dataclass(frozen=True)
 class Settings:
     app_name: str = os.getenv("APP_NAME", "PCC Counseling API")
-    max_turns: int = int(os.getenv("MAX_TURNS", "20"))
+    max_turns: int = int(os.getenv("MAX_TURNS", "100"))
     database_url: str = _normalize_database_url(os.getenv("DATABASE_URL", "sqlite:///./pcc.db"))
     cors_origins: list[str] = field(default_factory=list)
 

@@ -25,6 +25,14 @@ def _extract_text(response) -> str:
     return content.strip()
 
 
+def _remove_rewrite_example_section(feedback: str) -> str:
+    markers = ("**四、改寫示範**", "四、改寫示範", "### 四、改寫示範", "## 四、改寫示範")
+    indexes = [feedback.find(marker) for marker in markers if marker in feedback]
+    if not indexes:
+        return feedback
+    return feedback[: min(indexes)].rstrip()
+
+
 def generate_case_reply(user_input: str, history: list[dict[str, str]]) -> str:
     client = OpenAI(api_key=_require_api_key())
     system_prompt = _read_prompt("ruth_pcc.txt")
@@ -67,4 +75,4 @@ def generate_supervision_feedback(history: list[dict[str, str]]) -> str:
             },
         ],
     )
-    return _extract_text(response)
+    return _remove_rewrite_example_section(_extract_text(response))
