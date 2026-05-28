@@ -26,7 +26,6 @@ services:
       OPENAI_MODEL_CASE: ${OPENAI_MODEL_CASE:-gpt-4.1}
       OPENAI_MODEL_SUPERVISOR: ${OPENAI_MODEL_SUPERVISOR:-gpt-4.1}
       MAX_TURNS: ${MAX_TURNS:-20}
-      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:

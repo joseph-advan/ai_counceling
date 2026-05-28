@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, inspect as sa_inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -60,13 +60,6 @@ app.add_middleware(
 )
 
 
-def require_admin_access(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> None:
-    if not settings.admin_api_key:
-        return
-    if x_admin_key != settings.admin_api_key:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid admin key.")
-
-
 def _get_session_or_404(
     db: Session,
     session_id: str,
@@ -98,7 +91,7 @@ def health() -> dict[str, str]:
 def get_public_config() -> PublicConfigOut:
     return PublicConfigOut(
         max_turns=settings.max_turns,
-        admin_protected=bool(settings.admin_api_key),
+        admin_protected=False,
     )
 
 
@@ -143,7 +136,6 @@ def list_sessions(
 @app.get(
     "/admin/sessions",
     response_model=list[SessionSummaryOut],
-    dependencies=[Depends(require_admin_access)],
 )
 def admin_list_sessions(db: Session = Depends(get_db)) -> list[SessionSummaryOut]:
     stmt = select(CounselingSession).order_by(CounselingSession.updated_at.desc())
@@ -262,7 +254,6 @@ def resume_session(session_id: str, db: Session = Depends(get_db)) -> SessionDet
 @app.post(
     "/admin/sessions/{session_id}/recalc-supervision",
     response_model=CompleteOut,
-    dependencies=[Depends(require_admin_access)],
 )
 def admin_recalc_supervision(session_id: str, db: Session = Depends(get_db)) -> CompleteOut:
     session_obj = _get_session_or_404(db, session_id, with_messages=True)
@@ -283,7 +274,6 @@ def admin_recalc_supervision(session_id: str, db: Session = Depends(get_db)) -> 
 @app.delete(
     "/admin/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin_access)],
 )
 def admin_delete_session(session_id: str, db: Session = Depends(get_db)) -> Response:
     session_obj = db.get(CounselingSession, session_id)
@@ -297,7 +287,6 @@ def admin_delete_session(session_id: str, db: Session = Depends(get_db)) -> Resp
 @app.delete(
     "/admin/students/{student_name}/sessions",
     response_model=DeleteManyOut,
-    dependencies=[Depends(require_admin_access)],
 )
 def admin_delete_student_sessions(student_name: str, db: Session = Depends(get_db)) -> DeleteManyOut:
     stmt = select(CounselingSession).where(CounselingSession.student_name == student_name)

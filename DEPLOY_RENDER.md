@@ -27,7 +27,6 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL_CASE=gpt-4.1
 OPENAI_MODEL_SUPERVISOR=gpt-4.1
 MAX_TURNS=20
-ADMIN_API_KEY=replace-with-a-strong-admin-key
 CORS_ORIGINS=https://your-frontend.onrender.com
 ```
 

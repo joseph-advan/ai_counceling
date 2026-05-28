@@ -1,4 +1,4 @@
-# PCC React + FastAPI (No Auth MVP)
+# PCC React + FastAPI
 
 This is a new production-oriented project folder, separate from the original Streamlit MVP.
 
@@ -13,7 +13,7 @@ Current scope:
 - Role is selected on frontend (`Student` / `Admin`)
 - Student can chat with Ruth (PCC), up to 20 turns, then request supervision feedback
 - Admin can list all sessions, inspect details, recalculate supervision, and delete data
-- Optional admin protection: set `ADMIN_API_KEY` to require `X-Admin-Key` on `/admin/*`
+- Admin tools are intentionally open in this MVP, with no admin key required.
 
 ## API Endpoints
 

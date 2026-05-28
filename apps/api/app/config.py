@@ -27,7 +27,6 @@ class Settings:
     app_name: str = os.getenv("APP_NAME", "PCC Counseling API")
     max_turns: int = int(os.getenv("MAX_TURNS", "20"))
     database_url: str = _normalize_database_url(os.getenv("DATABASE_URL", "sqlite:///./pcc.db"))
-    admin_api_key: str = os.getenv("ADMIN_API_KEY", "").strip()
     cors_origins: list[str] = field(default_factory=list)
 
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()

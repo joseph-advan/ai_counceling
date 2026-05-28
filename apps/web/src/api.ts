@@ -48,10 +48,9 @@ export function listSessions(studentName: string): Promise<SessionSummary[]> {
   return request<SessionSummary[]>(`/sessions${query}`);
 }
 
-export function adminListSessions(adminKey?: string): Promise<SessionSummary[]> {
+export function adminListSessions(): Promise<SessionSummary[]> {
   return request<SessionSummary[]>("/admin/sessions", {
-    method: "GET",
-    headers: adminKey ? { "X-Admin-Key": adminKey } : undefined
+    method: "GET"
   });
 }
 
@@ -79,43 +78,22 @@ export function resumeSession(sessionId: string): Promise<SessionDetail> {
 }
 
 export function recalcSupervision(sessionId: string): Promise<CompleteResult> {
-  return recalcSupervisionWithKey(sessionId);
-}
-
-export function recalcSupervisionWithKey(
-  sessionId: string,
-  adminKey?: string
-): Promise<CompleteResult> {
   return request<CompleteResult>(`/admin/sessions/${sessionId}/recalc-supervision`, {
-    method: "POST",
-    headers: adminKey ? { "X-Admin-Key": adminKey } : undefined
+    method: "POST"
   });
 }
 
 export function deleteSession(sessionId: string): Promise<void> {
-  return deleteSessionWithKey(sessionId);
-}
-
-export function deleteSessionWithKey(sessionId: string, adminKey?: string): Promise<void> {
   return request<void>(`/admin/sessions/${sessionId}`, {
-    method: "DELETE",
-    headers: adminKey ? { "X-Admin-Key": adminKey } : undefined
+    method: "DELETE"
   });
 }
 
 export function deleteStudentSessions(studentName: string): Promise<{ deleted_count: number }> {
-  return deleteStudentSessionsWithKey(studentName);
-}
-
-export function deleteStudentSessionsWithKey(
-  studentName: string,
-  adminKey?: string
-): Promise<{ deleted_count: number }> {
   return request<{ deleted_count: number }>(
     `/admin/students/${encodeURIComponent(studentName)}/sessions`,
     {
-      method: "DELETE",
-      headers: adminKey ? { "X-Admin-Key": adminKey } : undefined
+      method: "DELETE"
     }
   );
 }
